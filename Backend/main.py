@@ -19,7 +19,44 @@ WEIGHTS = 'imagenet'
 locker = threading.Lock()
 training_threads = {}
 model_counter = 1
-modeles = ["Unet", "UnetPlusPlus", "MAnet", "Linknet", "FPN", "PSPNet", "DeepLabV3", "DeepLabV3Plus", "PAN"]
+modeles = [
+    {
+        "id": 0,
+        "value": "Unet"
+    },
+        {
+        "id": 1,
+        "value": "UnetPlusPlus"
+    },
+        {
+        "id": 2,
+        "value": "MAnet"
+    },
+        {
+        "id": 3,
+        "value": "Linknet"
+    },
+        {
+        "id": 4,
+        "value": "FPN"
+    },
+        {
+        "id": 5,
+        "value": "PSPNet"
+    },
+            {
+        "id": 6,
+        "value": "DeepLabV3"
+    },
+            {
+        "id": 7,
+        "value": "DeepLabV3Plus"
+    },
+            {
+        "id": 8,
+        "value": "PAN"
+    },
+    ]
 
 def delete_everything_in_folder(folder_path):
     shutil.rmtree(folder_path)
@@ -28,13 +65,16 @@ def start_training(TRAIN_DATA_PATH,EPOCHS,LR,IMG_SIZE,BATCH_SIZE,MODEL,TEST_SIZE
     global model_counter
     model_name = model_counter
     model_counter += 1
-    t = threading.Thread(target=train_thread(), args=(TRAIN_DATA_PATH,EPOCHS,LR,IMG_SIZE,BATCH_SIZE,MODEL,TEST_SIZE))
+    t = threading.Thread(target=train_thread, args=(TRAIN_DATA_PATH,EPOCHS,LR,IMG_SIZE,BATCH_SIZE,MODEL,TEST_SIZE))
     t.name=str(model_name)
     t.start()
     training_threads[model_name] = t
     return f"Training Model {model_name} started."
 
 def train_thread(TRAIN_DATA_PATH,EPOCHS,LR,IMG_SIZE,BATCH_SIZE,MODEL,TEST_SIZE):
+    print("НАЧАЛО ОБУЧЕНИЯ")
+    print(EPOCHS, BATCH_SIZE, MODEL)
+    
     DATA_DIR = 'Datasets/' + threading.current_thread().name + '/'
     SAVE_DIR = 'Saves/' + threading.current_thread().name + '/'
     global DEVICE, ENCODER, WEIGHTS
@@ -67,6 +107,7 @@ def train_thread(TRAIN_DATA_PATH,EPOCHS,LR,IMG_SIZE,BATCH_SIZE,MODEL,TEST_SIZE):
     #Это объявление модели
     model = SegmentationModel(MODEL, ENCODER, WEIGHTS)
     model.to(DEVICE)
+    print(model.parameters(),ENCODER,WEIGHTS)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
     best_val_loss = 1e9
 
@@ -130,5 +171,4 @@ def train_thread(TRAIN_DATA_PATH,EPOCHS,LR,IMG_SIZE,BATCH_SIZE,MODEL,TEST_SIZE):
         #plt.title('PREDICTION')
         #plt.show(block=False)
 
-
-start_training(TRAIN_DATA_PATH='dataset/train.csv',EPOCHS=2,LR = 0.001,IMG_SIZE = 320,BATCH_SIZE = 32,MODEL="PAN",TEST_SIZE=0.2   )
+#start_training(TRAIN_DATA_PATH='dataset/train.csv',EPOCHS=2,LR = 0.001,IMG_SIZE = 320,BATCH_SIZE = 32,MODEL="PAN",TEST_SIZE=0.2   )

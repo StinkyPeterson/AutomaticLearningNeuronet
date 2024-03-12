@@ -90,8 +90,8 @@ export function LearnModel(){
         xmlPath: "",
       }
       console.log("модель: ", dtoEducation)
-      socket.emit("message", dtoEducation)
-      socket.emit("start_periodic_data")
+      socket.emit("start", dtoEducation)
+      //socket.emit("start_periodic_data")
       setIsModelLearning(true)
     }
 

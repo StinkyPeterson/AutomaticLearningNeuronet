@@ -1,5 +1,6 @@
 import socketio
 import random
+from main import modeles, start_training
 
 sio = socketio.Server(cors_allowed_origins='http://localhost:3000')
 app = socketio.WSGIApp(sio)
@@ -20,22 +21,8 @@ def message(sid, data):
 @sio.event
 def get_models(sid):
     print("Получание моделей")
-    models = [
-        {
-            "id": 0,
-            "value": "нейросеть_name_1"
-        },
-        {
-            "id": 1,
-            "value": "нейросеть_name_2"
-        },
-        {
-            "id": 2,
-            "value": "нейросеть_name_3"
-        }
-    ]
 
-    sio.emit('send_models', data = models, room=sid)
+    sio.emit('send_models', data = modeles, room=sid)
 
 @sio.event
 def send_diagram(sid):
@@ -57,6 +44,10 @@ def start_periodic_data(sid):
 def force_stop(sid):
     print('Принудительная остановка')
     
+@sio.event
+def start(sid, data):
+    print(data)
+    start_training("dataset/train.csv", data["eraCount"], 0.01, 224, data["partitionLevel"], data["idModel"], data["validationPercent"])
 
 
 if __name__ == '__main__':
