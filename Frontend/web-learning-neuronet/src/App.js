@@ -1,13 +1,12 @@
 import 'devextreme/dist/css/dx.light.css';
-import logo from './logo.svg';
 import './App.css';
-import { Button } from 'devextreme-react';
+import { LearnModel } from './components/LearnModel/LearnModel';
 
 function App() {
-  return (
-    <div className="App">
-    </div>
-  );
+ 
+  return(
+      <LearnModel />
+  )
 }
 
 export default App;
