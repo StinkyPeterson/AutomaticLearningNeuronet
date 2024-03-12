@@ -1,0 +1,49 @@
+
+.select-setting{
+    width: 100%;
+    margin-top: 2%;
+    p {
+        margin: 10px;
+    }
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+
+.select-file{
+    width: 100%;
+    margin-top: 5%;
+    p {
+        margin: 10px;
+    }
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.model-setting-container{
+    margin: 5%;
+    border: solid 1px black;
+    border-radius: 20px;
+    padding: 1%;
+}
+
+.select-model-learning{
+    width: auto;
+    margin: 1%;
+}
+
+.setting-small-param{
+    display: flex;
+    flex-direction: row;
+}
+
+.setting-col{
+    width: max-content;
+    margin: 1%;
+}
+
+.start-learning{
+    margin: 1%;
+}
