@@ -9,6 +9,7 @@ const socket = socketIOClient(ENDPOINT);
 
 export function LearnModel(){
     const [isConnect, setIsConnect] = useState(false)
+    const [sid, setSid] = useState(null)
     const [dataModelsLearning, setDataModelsLearning] = useState(null)
     const [modelLearning, setModelLearning] = useState(null)
     const [eraCount, setEraCount] = useState(1)
@@ -21,9 +22,10 @@ export function LearnModel(){
     const [count, setCount] = useState(0)
 
     useEffect(() => {
-        socket.on("connect", () => {
+        socket.on("connect", (data) => {
             console.log("Connected to server");
             setIsConnect(true)
+            setSid(socket.id)
         });
 
         socket.on("disconnect", () => {
@@ -38,9 +40,10 @@ export function LearnModel(){
           console.log("Received models:", data);
           setDataModelsLearning(data);
       });
-      socket.on("periodic_data", (data) => {
+      socket.on("send_diagram", (data) => {
+        console.log('ДИАГРАММА')
         console.log("Received periodic data:", data);
-        setCount(data);
+        //setCount(data);
     });
         return () => {
             socket.off("send_models");
@@ -102,7 +105,7 @@ export function LearnModel(){
     return (
       <div>
         {
-            isConnect && <p>Подключение установлено</p>
+            isConnect && <p>Подключение установлено: {sid}</p>
           }
           {
             !isConnect && <p>Подключение не установлено</p>

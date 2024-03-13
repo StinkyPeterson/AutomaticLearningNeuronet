@@ -4,14 +4,16 @@ from segmentation_models_pytorch.losses import DiceLoss
 class SegmentationModel(nn.Module):
     def __init__(self,model_name,encoder,weights):
         super(SegmentationModel, self).__init__()
-        match model_name:
+        print(type(model_name))
+        match str(model_name):
             case "1":
+                print("!!!")
                 self.model = smp.UnetPlusPlus(
                     encoder_name=encoder,
                     encoder_weights=weights,
                     in_channels=3,
                     classes=1,
-                    activation=None
+                    activation=None,
                 )
             case "0":
                 self.model = smp.Unet(
