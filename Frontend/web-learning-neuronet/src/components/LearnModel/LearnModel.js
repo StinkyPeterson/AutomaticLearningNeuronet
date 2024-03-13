@@ -5,7 +5,10 @@ import socketIOClient from 'socket.io-client';
 import { Diagram } from '../Diagram/Diagram';
 
 const ENDPOINT = "http://localhost:5000";
-const socket = socketIOClient(ENDPOINT);
+const socket = socketIOClient(ENDPOINT, {
+    timeout: 600000,
+    pingTimeout: 600000
+});
 
 export function LearnModel(){
     const [isConnect, setIsConnect] = useState(false)
@@ -19,17 +22,31 @@ export function LearnModel(){
     const [isDisabledButton, setIsDisabledButton] = useState(true)
    
     const [isModelLearning, setIsModelLearning] = useState(false)
-    const [count, setCount] = useState(0)
+    const [epochData, setEpochData] = useState([]);
+
+    const [selectedFile, setSelectedFile] = useState(null);
 
     useEffect(() => {
+          const savedSid = localStorage.getItem("sid");
+          if (savedSid) {
+              socket.io.opts.query = { sid: savedSid }; // Передача sid в качестве параметра при повторном подключении
+              socket.connect();
+          }
+  
+
         socket.on("connect", (data) => {
             console.log("Connected to server");
             setIsConnect(true)
             setSid(socket.id)
+            localStorage.setItem("sid", socket.id);
         });
 
-        socket.on("disconnect", () => {
+        socket.on("disconnect", (reason, details) => {
             console.log("Disconnected from server");
+            console.log(reason);
+            //console.log(details?.message);
+            console.log(details?.description);
+            console.log(details?.context);
             setIsConnect(false)
         });
 
@@ -37,14 +54,16 @@ export function LearnModel(){
             console.log("Received response:", data);
         });
         socket.on("send_models", (data) => {
-          console.log("Received models:", data);
           setDataModelsLearning(data);
       });
       socket.on("send_diagram", (data) => {
-        console.log('ДИАГРАММА')
         console.log("Received periodic data:", data);
+          setEpochData(prevData => [...prevData, data]);
         //setCount(data);
     });
+      socket.on("end_training", () => {
+          console.log("Модель завершила обучение!")
+      })
         return () => {
             socket.off("send_models");
         };
@@ -69,7 +88,6 @@ export function LearnModel(){
     }
   
     function onPartitionChangedHandler(e){
-      
       setPartitionLevel(e.value)
     }
   
@@ -98,10 +116,11 @@ export function LearnModel(){
       setIsModelLearning(true)
     }
 
-    function onDataUploaded(e){
-        console.log(e)
-    }
-  
+    const handleFileChange = (event) => {
+      setSelectedFile(event.target.files[0]);
+      console.log(event)
+    };
+
     return (
       <div>
         {
@@ -113,6 +132,9 @@ export function LearnModel(){
         {!isModelLearning && 
           <>        
           <h1>Настройка модели</h1>
+          <div>
+            <input type="file" onChange={handleFileChange} />
+          </div>
           <div className='model-setting-container'>
             <div className='select-model-learning'>
               <SelectBox  
@@ -167,14 +189,6 @@ export function LearnModel(){
 
               </div>
               <div className='setting-col'>
-                    <FileUploader 
-                  labelText='Форма загрузки файла'
-                  selectButtonText="Выберите файл .zip, .rar" 
-                  uploadMode="useForm" 
-                  allowedFileExtensions={[".zip", ".rar"]}
-                  onBeforeSend={onDataUploaded}
-                  width={400}
-                />
                   <FileUploader 
                   width={400}
                   labelText='Форма загрузки XML'
@@ -197,7 +211,9 @@ export function LearnModel(){
         }
         {
           isModelLearning &&
-          <Diagram count={count}/>
+            <>
+                <Diagram data = {epochData}/>
+            </>
         }
 
       </div>
