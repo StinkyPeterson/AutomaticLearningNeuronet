@@ -15,18 +15,26 @@ from torch.utils.data import DataLoader
 from functions import get_train_augs,get_val_augs,train_model,eval_model
 from SegmentationModel import SegmentationModel
 from SegmentationDataset import SegmentationDataset
-import asyncio
-import base64
 from io import BytesIO
-import zipfile
+import socketio
+from sanic import Sanic, response
 
 import socketio
-sio = socketio.Server(cors_allowed_origins='http://localhost:3000')
-app = socketio.WSGIApp(sio)
+import base64
+import os
+import zipfile
+import os
+
+MAX_REQUEST_SIZE = 100 * 1024 * 1024  # 100 МБ
+
+sio = socketio.AsyncServer(async_mode='sanic', cors_allowed_origins='*', ping_timeout = 300, max_http_buffer_size = MAX_REQUEST_SIZE)
+app = Sanic(__name__)
+sio.attach(app)
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 ENCODER = 'timm-efficientnet-b0'
 WEIGHTS = 'imagenet'
+UPLOAD_FOLDER = 'uploaded_files'
 locker = threading.Lock()
 training_threads = {}
 model_counter = 1
@@ -69,43 +77,68 @@ modeles = [
     },
     ]
 
-
-
-
 @sio.event
-def connect(sid, environ):
+async def connect(sid, environ):
     print(f"Connected: {sid}")
 
 @sio.event
-def disconnect(sid):
+async def disconnect(sid):
     print(f"Disconnected: {sid}")
 
 @sio.event
-def message(sid, data):
+async def message(sid, data):
     print(f"Message from {sid}: {data}")
-    sio.emit('response', data="Received your message!", room=sid)
+    await sio.emit('response', data="Received your message!", room=sid)
 
 @sio.event
-def get_models(sid):
-    sio.emit('send_models', data = modeles, room=sid)
-    sio.emit('response', data="Received your message!", room=sid)
-
-@sio.event
-def force_stop(sid):
-    print('Принудительная остановка')
+async def get_models(sid):
+    print("ОТПРАВКА МОДЕЛЕЙ КЛИЕНТУ")
+    await sio.emit('send_models', data = modeles, room=sid)
     
 @sio.event
-def start(sid, data):
-    print(data)
-    # sio.start_background_task(start_training, args = ("dataset/train.csv", data["eraCount"], 0.001, 224, data["partitionLevel"], data["idModel"], data["validationPercent"], sid))
-    sio.start_background_task(target= lambda: start_training("dataset/train.csv", data["eraCount"], 0.001, 224, data["partitionLevel"], data["idModel"], data["validationPercent"], sid))
+async def start(sid, data):
+    print()
+    await start_training("dataset/train.csv", data["eraCount"], 0.001, 224, data["partitionLevel"], data["idModel"], data["validationPercent"], sid)
+
+
+
+@sio.event
+async def chunk(sid, data):
+    os.makedirs(f'DataSets/{sid}/dataset', exist_ok=True)
+    with open(f'DataSets/{sid}/dataset/output.zip', 'ab') as f:
+        f.write(data)
+    print(f'Received chunk of size {len(data)} bytes')
+
+@sio.event
+async def unpacking_dataset(sid):
+    print('Received end signal')
+    print('File received successfully')
+
+    # После получения всех чанков архива, распаковываем его
+    try:
+        with zipfile.ZipFile(f"DataSets/{sid}/dataset/output.zip", 'r') as zip_ref:
+            zip_ref.extractall(f"DataSets/{sid}/dataset")
+        print('Archive unpacked successfully')
+    except Exception as e:
+        print('Error unpacking archive:', e)
+
+    # Опционально - удаляем архив после распаковки, если он больше не нужен
+    try:
+        os.remove(f"DataSets/{sid}/dataset/output.zip")
+        print('Archive removed successfully')
+    except Exception as e:
+        print('Error removing archive:', e)
+    await sio.emit("dataset_loaded")
+
+
 
 def delete_everything_in_folder(folder_path):
     shutil.rmtree(folder_path)
     os.mkdir(folder_path)
-def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODEL, TEST_SIZE, sid):
-    DATA_DIR = 'Datasets/' + "1" + '/'
-    SAVE_DIR = 'Saves/' + "1" + '/'
+async def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODEL, TEST_SIZE, sid):
+    DATA_DIR = 'Datasets/' + sid + '/'
+    SAVE_DIR = 'Saves/' + sid + '/'
+    os.makedirs(SAVE_DIR, exist_ok=True)
     global DEVICE, ENCODER, WEIGHTS
 
     # Это читка файла разметки
@@ -139,12 +172,13 @@ def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODEL, TES
             "valLossY": val_loss,
             "valDiceY": val_dice
         }
-        t = threading.Thread(target=send_data, args=(dataDiagram, sid))
-        t.start()
+        await sio.emit("send_diagram", dataDiagram, sid)
+        # t = threading.Thread(target=send_data, args=(dataDiagram, sid))
+        # t.start()
         print(f"\033[1m\033[92m Epoch {i} Train Loss {train_loss} Train dice {train_dice} Val Loss {val_loss} Val Dice {val_dice}")
 
     print(f"Model {sid} training completed.")
-    sio.emit('end_training', room=sid)
+    await sio.emit('end_training', room=sid)
 
 def send_data(dataDiagram, sid):
     print("send_data", sid)
@@ -227,7 +261,5 @@ def send_data(dataDiagram, sid):
     sio.emit("send_diagram", dataDiagram, room=sid)
 
 
-if __name__ == '__main__':
-    import eventlet
-    # eventlet.monkey_patch()
-    eventlet.wsgi.server(eventlet.listen(('', 5000)), app)
+if __name__ == "__main__":
+    app.run(host="localhost", port=8765)
