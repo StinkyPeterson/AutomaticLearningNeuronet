@@ -92,13 +92,21 @@ async def message(sid, data):
     await sio.emit('response', data="Received your message!", room=sid)
 
 @sio.event
+async def stop(sid):
+    global training_threads
+    training_threads[sid] = True
+    print(training_threads)
+
+@sio.event
 async def get_models(sid):
     print("ОТПРАВКА МОДЕЛЕЙ КЛИЕНТУ")
     await sio.emit('send_models', data = modeles, room=sid)
     
 @sio.event
 async def start(sid, data):
-    print()
+    global training_threads
+    training_threads[sid] = False
+    print(training_threads)
     await start_training("dataset/train.csv", data["eraCount"], 0.001, 224, data["partitionLevel"], data["idModel"], data["validationPercent"], sid)
 
 @sio.event
@@ -150,7 +158,7 @@ async def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODE
     DATA_DIR = 'Datasets/' + sid + '/'
     SAVE_DIR = 'Saves/' + sid + '/'
     os.makedirs(SAVE_DIR, exist_ok=True)
-    global DEVICE, ENCODER, WEIGHTS
+    global DEVICE, ENCODER, WEIGHTS, training_threads
 
     # Это читка файла разметки
     df = pd.read_csv(DATA_DIR + TRAIN_DATA_PATH)
@@ -170,11 +178,15 @@ async def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODE
     for i in range(1, EPOCHS + 1):
         train_loss, train_dice = train_model(trainloader, model, optimizer, DEVICE)
         val_loss, val_dice = eval_model(valloader, model, DEVICE)
+        print(training_threads)
+        if training_threads[sid]:
+            break
 
         if val_loss < best_val_loss:
             torch.save(model.state_dict(), SAVE_DIR + "best_model.pt")
             print("MODEL SAVED")
             best_val_loss = val_loss
+        
 
         dataDiagram = {
             "epoch": i,
@@ -184,8 +196,6 @@ async def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODE
             "valDiceY": val_dice
         }
         await sio.emit("send_diagram", dataDiagram, sid)
-        # t = threading.Thread(target=send_data, args=(dataDiagram, sid))
-        # t.start()
         print(f"\033[1m\033[92m Epoch {i} Train Loss {train_loss} Train dice {train_dice} Val Loss {val_loss} Val Dice {val_dice}")
 
     print(f"Model {sid} training completed.")

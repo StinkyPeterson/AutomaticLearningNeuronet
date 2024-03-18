@@ -170,6 +170,10 @@ export function LearnModel() {
         socket.emit('download_file');
       };
 
+      function modelTrainingStop(){
+        socket.emit('stop');
+      }
+
 
     return (
         <div>
@@ -240,13 +244,6 @@ export function LearnModel() {
                                     type="file"
                                     onChange={handleFileUpload}
                                 />
-                                {/* <FileUploader
-                                    width={400}
-                                    labelText='Форма загрузки XML'
-                                    selectButtonText="Выберите файл .xml"
-                                    uploadMode="useForm"
-                                    allowedFileExtensions={[".xml"]}
-                                /> */}
                             </div>
                         </div>
                         <Button
@@ -263,6 +260,7 @@ export function LearnModel() {
                 isModelLearning &&
                 <>
                     <Diagram data={epochData}/>
+                    <Button onClick = {modelTrainingStop} text='Принудительная остановка'/>
                 </>
             }
             {
