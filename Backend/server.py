@@ -17,7 +17,8 @@ from SegmentationModel import SegmentationModel
 from SegmentationDataset import SegmentationDataset
 from io import BytesIO
 import socketio
-from sanic import Sanic, response
+from sanic import Sanic
+from sanic.response import file
 
 import socketio
 import base64
@@ -100,8 +101,6 @@ async def start(sid, data):
     print()
     await start_training("dataset/train.csv", data["eraCount"], 0.001, 224, data["partitionLevel"], data["idModel"], data["validationPercent"], sid)
 
-
-
 @sio.event
 async def chunk(sid, data):
     os.makedirs(f'DataSets/{sid}/dataset', exist_ok=True)
@@ -130,11 +129,23 @@ async def unpacking_dataset(sid):
         print('Error removing archive:', e)
     await sio.emit("dataset_loaded")
 
+@sio.event
+async def download_file(sid):
+    file_path = f'Saves/{sid}/best_model.pt'  # Путь к вашему файлу на сервере
+
+    with open(file_path, 'rb') as f:
+        file_data = f.read()
+
+    # Кодируем данные файла в base64
+    file_base64 = base64.b64encode(file_data).decode('utf-8')
+
+    await sio.emit('file_data', file_base64, room=sid)
 
 
 def delete_everything_in_folder(folder_path):
     shutil.rmtree(folder_path)
     os.mkdir(folder_path)
+
 async def start_training(TRAIN_DATA_PATH, EPOCHS, LR, IMG_SIZE, BATCH_SIZE, MODEL, TEST_SIZE, sid):
     DATA_DIR = 'Datasets/' + sid + '/'
     SAVE_DIR = 'Saves/' + sid + '/'

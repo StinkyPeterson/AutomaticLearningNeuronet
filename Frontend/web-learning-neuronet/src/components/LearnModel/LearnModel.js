@@ -27,6 +27,7 @@ export function LearnModel() {
 
     const [isDatasetLoaded, setIsDatasetLoaded] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const [isModelEndLearning, setIsModelEndLearning] = useState(false)
 
 
     useEffect(() => {
@@ -63,12 +64,16 @@ export function LearnModel() {
         });
         socket.on("end_training", () => {
             console.log("Модель завершила обучение!")
+            setIsModelEndLearning(true)
         })
         socket.on('dataset_loaded', () => {
             console.log('Датасет загружен!')
             setIsDatasetLoaded(true)
             setIsLoading(false)
         })
+        socket.on('file_data', (data) => {
+            downloadFile(data);
+          });
         return () => {
             socket.off("send_models");
         };
@@ -116,6 +121,24 @@ export function LearnModel() {
         setIsModelLearning(true)
     }
 
+    function downloadFile(data){
+        const byteCharacters = atob(data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'file.pt';
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      };
+
     async function handleFileUpload(event){
         console.log(event)
         const file = event.target.files[0];
@@ -142,6 +165,10 @@ export function LearnModel() {
         };
         reader.readAsArrayBuffer(file);
       }
+
+      function handleButtonClick (){
+        socket.emit('download_file');
+      };
 
 
     return (
@@ -237,6 +264,10 @@ export function LearnModel() {
                 <>
                     <Diagram data={epochData}/>
                 </>
+            }
+            {
+                isModelEndLearning && 
+                <Button text ="Скачать файл модели" onClick={handleButtonClick} />
             }
 
         </div>
