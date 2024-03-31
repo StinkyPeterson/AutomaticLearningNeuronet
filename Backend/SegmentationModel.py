@@ -7,7 +7,6 @@ class SegmentationModel(nn.Module):
         print(type(model_name))
         match str(model_name):
             case "1":
-                print("!!!")
                 self.model = smp.UnetPlusPlus(
                     encoder_name=encoder,
                     encoder_weights=weights,

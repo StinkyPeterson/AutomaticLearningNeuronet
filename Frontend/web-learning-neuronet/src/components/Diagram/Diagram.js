@@ -3,7 +3,6 @@ import {Legend, Line, LineChart, XAxis, YAxis} from "recharts";
 
 
 export function Diagram({data}){
-    console.log(data)
     return(
         <LineChart width={500} height={500} data={data}>
             <XAxis dataKey="epoch"/>

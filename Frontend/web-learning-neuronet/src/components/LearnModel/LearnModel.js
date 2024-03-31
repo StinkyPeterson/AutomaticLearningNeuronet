@@ -6,10 +6,10 @@ import {Diagram} from '../Diagram/Diagram';
 
 const ENDPOINT = "http://localhost:8765";
 const socket = io(ENDPOINT, {
-    timeout: 600000,
-    pingTimeout: 600000,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
+    // timeout: 600000,
+    // pingTimeout: 600000,
+    reconnectionAttempts: 20,
+    reconnectionDelay: 5000,
 });
 
 export function LearnModel() {
@@ -23,10 +23,11 @@ export function LearnModel() {
     const [isAutomaticStop, setIsAutomaticStop] = useState(false)
     const [isDisabledButton, setIsDisabledButton] = useState(true)
     const [isModelLearning, setIsModelLearning] = useState(false)
+
     const [epochData, setEpochData] = useState([]);
+    const [modelNumber, setModelNumber] = useState(0)
 
     const [isDatasetLoaded, setIsDatasetLoaded] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
     const [isModelEndLearning, setIsModelEndLearning] = useState(false)
 
 
@@ -34,6 +35,7 @@ export function LearnModel() {
         socket.emit("get_models")
         socket.on("connect", (data) => {
             console.log("Connected to server");
+            console.log(socket);
             setIsConnect(true)
             setSid(socket.id) 
             if(socket.recovered){
@@ -41,26 +43,29 @@ export function LearnModel() {
             }else{
                 console.log('новое соединение')
             }
+            // setTimeout(() => {
+            //     // close the low-level connection and trigger a reconnection
+            //     socket.io.engine.close();
+            // }, Math.random() * 5000 + 1000);
         });
+        socket.on("reconnect", (data) => {
+            console.log('recconect')
+        })
         socket.on("response", (data) => {
             console.log(data)
         })
         socket.on("disconnect", (reason, details) => {
             console.log("Disconnected from server");
+            console.log(socket)
             console.log(reason);
-            //console.log(details?.message);
+            console.log(details);
             console.log(details?.description);
             console.log(details?.context);
             setIsConnect(false)
             setSid(null)
         });
         socket.on("send_models", (data) => {
-            console.log("Received models:", data);
             setDataModelsLearning(data);
-        });
-        socket.on("send_diagram", (data) => {
-            console.log("Received periodic data:", data);
-            setEpochData(prevData => [...prevData, data]);
         });
         socket.on("end_training", () => {
             console.log("Модель завершила обучение!")
@@ -69,13 +74,14 @@ export function LearnModel() {
         socket.on('dataset_loaded', () => {
             console.log('Датасет загружен!')
             setIsDatasetLoaded(true)
-            setIsLoading(false)
         })
         socket.on('file_data', (data) => {
             downloadFile(data);
           });
         return () => {
             socket.off("send_models");
+            socket.off("connect");
+            socket.off("disconnect");
         };
     }, []);
 
@@ -84,6 +90,26 @@ export function LearnModel() {
             setIsDisabledButton(false)
         }
     }, [modelLearning, isDatasetLoaded])
+
+    useEffect(() => {
+        if(isModelLearning){
+            console.log("ПОДПИСКА НА СОБЫТИЕ")
+            socket.on("send_diagram", (data) => {
+                console.log("Received periodic data:", data);
+                console.log(modelNumber)
+                setEpochData(prevData => ({
+                    ...prevData,
+                    [modelNumber]: [...(prevData[modelNumber] || []), data],
+                }));
+            });
+        }
+    }, [isModelLearning])
+
+    useEffect(() => {
+        if(isModelEndLearning){
+            socket.off("send_diagram");
+        }
+    }, [isModelEndLearning])
 
     function onModelChangedHandler(e) {
         setModelLearning(e.value)
@@ -98,7 +124,6 @@ export function LearnModel() {
     }
 
     function onValidationChangedHandler(e) {
-        console.log(e)
         setValidationPercent(e.value)
     }
 
@@ -119,6 +144,7 @@ export function LearnModel() {
         // console.log("модель: ", dtoEducation)
         socket.emit("start", dtoEducation)
         setIsModelLearning(true)
+        setIsModelEndLearning(false)
     }
 
     function downloadFile(data){
@@ -148,7 +174,6 @@ export function LearnModel() {
       };
 
     async function sendZipFile(file) {
-        setIsLoading(true)
         const CHUNK_SIZE = 1024 * 1024; // 1 МБ
         const reader = new FileReader();
         reader.onload = async () => {
@@ -170,10 +195,10 @@ export function LearnModel() {
         socket.emit('download_file');
       };
 
-      function modelTrainingStop(){
-        socket.emit('stop');
+      function handleNewTraining(){
+          setModelNumber(modelNumber + 1)
+          setIsModelLearning(false)
       }
-
 
     return (
         <div>
@@ -185,7 +210,7 @@ export function LearnModel() {
             }
             {!isModelLearning &&
                 <>
-                    <h1>Настройка модели</h1>
+                    <h1 className="h1-model" >Настройка модели</h1>
                     <div className='model-setting-container'>
                         <div className='select-model-learning'>
                             <SelectBox
@@ -239,11 +264,18 @@ export function LearnModel() {
                                 </div>
 
                             </div>
-                            <div className='setting-col'>
-                                <input
-                                    type="file"
-                                    onChange={handleFileUpload}
-                                />
+                            <div className='setting-col input-file-col'>
+                                {/*<input*/}
+                                {/*    type="file"*/}
+                                {/*    onChange={handleFileUpload}*/}
+                                {/*    className='input-file'*/}
+                                {/*/>*/}
+                                <form method="post" encType="multipart/form-data">
+                                    <label class="input-file">
+                                        <input type="file" name="file" onChange={handleFileUpload} />
+                                            <span class="input-file-btn">Выберите файл</span>
+                                    </label>
+                                </form>
                             </div>
                         </div>
                         <Button
@@ -257,17 +289,17 @@ export function LearnModel() {
                 </>
             }
             {
-                isModelLearning &&
+                isModelEndLearning &&
                 <>
-                    <Diagram data={epochData}/>
-                    <Button onClick = {modelTrainingStop} text='Принудительная остановка'/>
+                    <Button text ="Скачать файл модели" className="btn-training" onClick={handleButtonClick} />
+                    <Button text="Начать новое обучение модели" className="btn-training" onClick={handleNewTraining}/>
                 </>
             }
-            {
-                isModelEndLearning && 
-                <Button text ="Скачать файл модели" onClick={handleButtonClick} />
-            }
-
+            {Object.keys(epochData).reverse().map(modelName => (
+                <div key={modelName}>
+                    <Diagram key={modelName} data={epochData[modelName]} />
+                </div>
+            ))}
         </div>
     );
 }
