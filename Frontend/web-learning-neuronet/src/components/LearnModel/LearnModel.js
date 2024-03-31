@@ -4,10 +4,10 @@ import {useState, useEffect} from 'react';
 import io from "socket.io-client";
 import {Diagram} from '../Diagram/Diagram';
 
-const ENDPOINT = "http://localhost:8765";
+const ENDPOINT = process.env.REACT_APP_BACKEND;
 const socket = io(ENDPOINT, {
-    // timeout: 600000,
-    // pingTimeout: 600000,
+    timeout: 600000,
+    pingTimeout: 600000,
     reconnectionAttempts: 20,
     reconnectionDelay: 5000,
 });
@@ -244,6 +244,12 @@ export function LearnModel() {
                                     min={0.1}
                                     max={1}
                                 />
+                                <NumberBox
+                                    label='Ширина (px)'
+                                    labelMode="outside"
+                                    stylingMode="outlined"
+                                    defaultValue={224}
+                                />
                             </div>
                             <div className='setting-col'>
                                 <NumberBox
@@ -255,13 +261,20 @@ export function LearnModel() {
                                     onValueChanged={onPartitionChangedHandler}
                                     min={1}
                                 />
-                                <div className='select-setting'>
-                                    <p>Автоматическая остановка</p>
-                                    <CheckBox
-                                        defaultValue={isAutomaticStop}
-                                        onValueChanged={onAutomaticStopHandler}
-                                    />
-                                </div>
+                                <NumberBox
+                                    label='Интенсивность'
+                                    labelMode="outside"
+                                    stylingMode="outlined"
+                                    defaultValue={0.01}
+                                />
+                                <NumberBox
+                                    label='Высота (px)'
+                                    labelMode="outside"
+                                    stylingMode="outlined"
+                                    defaultValue={224}
+                                />
+
+
 
                             </div>
                             <div className='setting-col input-file-col'>
@@ -276,6 +289,13 @@ export function LearnModel() {
                                             <span class="input-file-btn">Выберите файл</span>
                                     </label>
                                 </form>
+                                <div className='select-setting'>
+                                    <p>Автоматическая остановка</p>
+                                    <CheckBox
+                                        defaultValue={isAutomaticStop}
+                                        onValueChanged={onAutomaticStopHandler}
+                                    />
+                                </div>
                             </div>
                         </div>
                         <Button

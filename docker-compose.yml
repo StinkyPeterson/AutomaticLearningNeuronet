@@ -1,0 +1,19 @@
+version: '3'
+services:
+  backend:
+    build:
+      context: ./Backend 
+    ports:
+      - "8000:8000"  
+    volumes:
+      - ./Backend:/app  
+    environment:
+      - ENVIRONMENT=production 
+
+  frontend:
+    build:
+      context: ./Frontend/web-learning-neuronet 
+    ports:
+      - "80:80"  
+    environment:
+      - REACT_APP_BACKEND="http://localhost:8000"  

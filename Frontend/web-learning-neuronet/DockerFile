@@ -1,0 +1,29 @@
+# Используем официальный образ Node.js версии 16 как базовый образ
+FROM node:16 AS build
+
+# Создаем и устанавливаем рабочую директорию внутри Docker контейнера
+WORKDIR /app
+
+# Копируем файлы package.json и package-lock.json для установки зависимостей
+COPY package.json package-lock.json ./
+
+# Устанавливаем зависимости
+RUN npm install
+
+# Копируем все файлы из текущей директории в /app внутри Docker контейнера
+COPY . .
+
+# Собираем приложение React
+RUN npm run build
+
+# Создаем production-ready образ с минимальным размером
+FROM nginx:alpine
+
+# Копируем собранные файлы React из предыдущего этапа в папку html по умолчанию для Nginx
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Определяем порт, который будет открыт в контейнере
+EXPOSE 80
+
+# Команда для запуска Nginx в фоновом режиме
+CMD ["nginx", "-g", "daemon off;"]
