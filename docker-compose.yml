@@ -5,8 +5,6 @@ services:
       context: ./Backend 
     ports:
       - "8000:8000"  
-    volumes:
-      - ./Backend:/app  
     environment:
       - ENVIRONMENT=production 
 
